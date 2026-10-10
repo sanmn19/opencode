@@ -624,6 +624,21 @@ export type CompactionPart = {
   tail_start_id?: string
 }
 
+export type AgentMessagePart = {
+  id: string
+  sessionID: string
+  messageID: string
+  type: "agent-message"
+  sender: {
+    sessionID: string
+    agent: string
+  }
+  to: string
+  replyTo?: string
+  urgent?: boolean
+  text: string
+}
+
 export type Part =
   | TextPart
   | SubtaskPart
@@ -637,6 +652,7 @@ export type Part =
   | AgentPart
   | RetryPart
   | CompactionPart
+  | AgentMessagePart
 
 export type Prompt = {
   text: string

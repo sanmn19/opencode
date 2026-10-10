@@ -354,6 +354,20 @@ export const User = Schema.Struct({
 }).annotate({ identifier: "UserMessage" })
 export type User = Types.DeepMutable<Schema.Schema.Type<typeof User>>
 
+export const AgentMessagePart = Schema.Struct({
+  ...partBase,
+  type: Schema.Literal("agent-message"),
+  sender: Schema.Struct({
+    sessionID: SessionID,
+    agent: Schema.String,
+  }),
+  to: SessionID,
+  replyTo: Schema.optional(MessageID),
+  urgent: Schema.optional(Schema.Boolean),
+  text: Schema.String,
+}).annotate({ identifier: "AgentMessagePart" })
+export type AgentMessagePart = Types.DeepMutable<Schema.Schema.Type<typeof AgentMessagePart>>
+
 export const Part = Schema.Union([
   TextPart,
   SubtaskPart,
@@ -367,6 +381,7 @@ export const Part = Schema.Union([
   AgentPart,
   RetryPart,
   CompactionPart,
+  AgentMessagePart,
 ]).annotate({ discriminator: "type", identifier: "Part" })
 export type Part =
   | TextPart
@@ -381,6 +396,7 @@ export type Part =
   | AgentPart
   | RetryPart
   | CompactionPart
+  | AgentMessagePart
 
 const AssistantErrorSchema = Schema.Union([
   AuthError.EffectSchema,
@@ -449,6 +465,20 @@ export const SubtaskPartInput = Schema.Struct({
   command: Schema.optional(Schema.String),
 }).annotate({ identifier: "SubtaskPartInput" })
 export type SubtaskPartInput = Types.DeepMutable<Schema.Schema.Type<typeof SubtaskPartInput>>
+
+export const AgentMessagePartInput = Schema.Struct({
+  id: Schema.optional(PartID),
+  type: Schema.Literal("agent-message"),
+  sender: Schema.Struct({
+    sessionID: SessionID,
+    agent: Schema.String,
+  }),
+  to: SessionID,
+  replyTo: Schema.optional(MessageID),
+  urgent: Schema.optional(Schema.Boolean),
+  text: Schema.String,
+}).annotate({ identifier: "AgentMessagePartInput" })
+export type AgentMessagePartInput = Types.DeepMutable<Schema.Schema.Type<typeof AgentMessagePartInput>>
 
 export const Assistant = Schema.Struct({
   ...messageBase,
