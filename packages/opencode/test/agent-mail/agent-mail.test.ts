@@ -192,3 +192,37 @@ describe("AgentMail delivery", () => {
     }),
   )
 })
+
+describe("agent_message tool", () => {
+  it5("routes a tool call made by the LLM to the target session", () =>
+    Effect.gen(function* () {
+      const { llm } = yield* cfg5.useServerConfig(cfg5.providerCfg)
+      const promptSvc = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const target = yield* sessions.create({
+        agent: "worker-two",
+        permission: [{ permission: "*", pattern: "*", action: "allow" }],
+      })
+      const main = yield* sessions.create({})
+      yield* llm.push(reply().tool("agent_message", { to: "worker-two", text: "hello worker" }).stop())
+      yield* llm.push(reply().text("sent").stop())
+      yield* promptSvc.prompt({
+        sessionID: main.id,
+        parts: [{ type: "text", text: "tell worker-two hello" }],
+      })
+      yield* pollWithTimeout(
+        Effect.gen(function* () {
+          const messages = yield* sessions.messages({ sessionID: target.id })
+          return messages.some((m) =>
+            m.parts.some((p) => p.type === "agent-message" && p.text === "hello worker"),
+          )
+            ? (true as const)
+            : undefined
+        }),
+        "tool-delivered message never landed in target",
+        "20 seconds",
+      )
+    }),
+  60_000,
+  )
+})

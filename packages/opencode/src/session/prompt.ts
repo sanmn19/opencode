@@ -7,6 +7,8 @@ import { SessionID, MessageID, PartID } from "./schema"
 import { MessageV2 } from "./message-v2"
 import { SessionRevert } from "./revert"
 import { Session } from "./session"
+import { AgentMail } from "@/agent-mail/agent-mail"
+import { AgentMailRuntime } from "@/agent-mail/delivery"
 import { Agent } from "../agent/agent"
 import { Provider } from "@/provider/provider"
 
@@ -147,6 +149,11 @@ const layer = Layer.effect(
         resolvePromptParts: (template: string) => resolvePromptParts(template),
         prompt: (input: PromptInput) => prompt(input).pipe(Effect.catch(Effect.die)),
       } satisfies TaskPromptOps
+    })
+
+    const mail = yield* AgentMail.Service
+    yield* mail.setAdmitter({
+      prompt: (input) => prompt(input).pipe(Effect.asVoid),
     })
 
     const cancel = Effect.fn("SessionPrompt.cancel")(function* (sessionID: SessionID) {
@@ -1614,6 +1621,7 @@ export const node = LayerNode.make({
   service: Service,
   layer: layer,
   deps: [
+    AgentMailRuntime.node,
     SessionStatus.node,
     Session.node,
     Agent.node,

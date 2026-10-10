@@ -3,7 +3,7 @@ import { Database } from "@opencode-ai/core/database/database"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { SessionProjector } from "@opencode-ai/core/session/projector"
 import { EventV2Bridge } from "@/event-v2-bridge"
-import { AgentMail } from "@/agent-mail/agent-mail"
+import { AgentMailRuntime } from "@/agent-mail/delivery"
 import { expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import path from "path"
@@ -221,7 +221,7 @@ function makeMail(flags: Partial<RuntimeFlags.Info> = {}) {
     [MCP.node, makeMcp()],
     [RuntimeFlags.node, runtimeFlags({ a2a: true, a2aAutoWake: true, ...flags })],
   ] as const
-  return LayerNode.compile(LayerNode.group([promptRoot, AgentMail.node, testLLMServerNode]), replacements)
+  return LayerNode.compile(LayerNode.group([promptRoot, AgentMailRuntime.node, testLLMServerNode]), replacements)
 }
 
 export const it5 = testEffect(makeMail()).instance

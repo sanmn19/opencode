@@ -10,6 +10,8 @@ import { GlobTool } from "./glob"
 import { GrepTool } from "./grep"
 import { ReadTool } from "./read"
 import { TaskTool } from "./task"
+import { AgentMessage } from "./agent-message"
+import { AgentMailRuntime } from "@/agent-mail/delivery"
 import { Database } from "@opencode-ai/core/database/database"
 import { TodoWriteTool } from "./todo"
 import { WebFetchTool } from "./webfetch"
@@ -100,6 +102,7 @@ const layer = Layer.effect(
 
     const invalid = yield* InvalidTool
     const task = yield* TaskTool
+    const agentMessage = yield* AgentMessage.AgentMessageTool
     const read = yield* ReadTool
     const question = yield* QuestionTool
     const todo = yield* TodoWriteTool
@@ -215,6 +218,7 @@ const layer = Layer.effect(
           edit: Tool.init(edit),
           write: Tool.init(writetool),
           task: Tool.init(task),
+          agentMessage: Tool.init(agentMessage),
           fetch: Tool.init(webfetch),
           todo: Tool.init(todo),
           search: Tool.init(websearch),
@@ -238,6 +242,7 @@ const layer = Layer.effect(
             tool.edit,
             tool.write,
             tool.task,
+            tool.agentMessage,
             tool.fetch,
             tool.todo,
             tool.search,
@@ -430,6 +435,7 @@ export const node = LayerNode.make({
   deps: [
     Config.node,
     Plugin.node,
+    AgentMailRuntime.node,
     Question.node,
     Todo.node,
     Agent.node,
