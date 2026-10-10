@@ -70,6 +70,17 @@ export const SummarizePayload = Schema.Struct({
 export const PromptPayload = Schema.Struct(Struct.omit(SessionPrompt.PromptInput.fields, ["sessionID"]))
 export const CommandPayload = Schema.Struct(Struct.omit(SessionPrompt.CommandInput.fields, ["sessionID"]))
 export const ShellPayload = Schema.Struct(Struct.omit(SessionPrompt.ShellInput.fields, ["sessionID"]))
+export const AgentMessagePayload = Schema.Struct({
+  from: Schema.String,
+  agent: Schema.String,
+  text: Schema.String,
+  urgent: Schema.optional(Schema.Boolean),
+  replyTo: Schema.optional(Schema.String),
+})
+export const AgentDeliveryInfo = Schema.Struct({
+  target: Schema.String,
+  delivery: Schema.Literals(["delivered", "queued"]),
+})
 export const RevertPayload = Schema.Struct(Struct.omit(SessionRevert.RevertInput.fields, ["sessionID"]))
 export const PermissionResponsePayload = Schema.Struct({
   response: PermissionV1.Reply,
@@ -94,6 +105,7 @@ export const SessionPaths = {
   summarize: `${root}/:sessionID/summarize`,
   prompt: `${root}/:sessionID/message`,
   promptAsync: `${root}/:sessionID/prompt_async`,
+  agentMessage: `${root}/:sessionID/agent-message`,
   command: `${root}/:sessionID/command`,
   shell: `${root}/:sessionID/shell`,
   revert: `${root}/:sessionID/revert`,
@@ -338,6 +350,19 @@ export const SessionApi = HttpApi.make("session")
             summary: "Send async message",
             description:
               "Create and send a new message to a session asynchronously, starting the session if needed and returning immediately.",
+          }),
+        ),
+        HttpApiEndpoint.post("agentMessage", SessionPaths.agentMessage, {
+          params: { sessionID: SessionID },
+          query: WorkspaceRoutingQuery,
+          payload: AgentMessagePayload,
+          success: described(AgentDeliveryInfo, "Agent message delivery result"),
+          error: [HttpApiError.BadRequest, ApiNotFoundError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.agentMessage",
+            summary: "Send an agent message",
+            description: "Deliver an agent-to-agent message into a session's transcript and processing queue.",
           }),
         ),
         HttpApiEndpoint.post("command", SessionPaths.command, {
