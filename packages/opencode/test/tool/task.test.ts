@@ -744,7 +744,9 @@ describe("tool.task", () => {
 
       yield* Deferred.succeed(done, undefined)
       expect((yield* jobs.wait({ id: result.metadata.sessionId })).info?.output).toBe("background done")
-      expect((yield* Deferred.await(injected)).parts[0]?.type).toBe("text")
+      const injectedInput = yield* Deferred.await(injected)
+      expect(injectedInput.parts[0]?.type).toBe("agent-message")
+      expect(injectedInput.agent).toBe("build")
       expect(runs).toBe(1)
     }),
   )
@@ -856,8 +858,8 @@ describe("tool.task", () => {
       expect(waited.info?.output).toBe("second done")
       const notification = yield* Effect.promise(() => injected.promise)
       expect(notification.variant).toBe("xhigh")
-      expect(notification.parts[0]?.type).toBe("text")
-      if (notification.parts[0]?.type === "text") expect(notification.parts[0].text).toContain("second done")
+      expect(notification.parts[0]?.type).toBe("agent-message")
+      if (notification.parts[0]?.type === "agent-message") expect(notification.parts[0].text).toContain("second done")
     }),
   )
 
