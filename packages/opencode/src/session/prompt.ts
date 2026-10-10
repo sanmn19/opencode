@@ -699,6 +699,20 @@ const layer = Layer.effect(
       const resolvePart: (part: PromptInput["parts"][number]) => Effect.Effect<Draft<SessionV1.Part>[]> = Effect.fn(
         "SessionPrompt.resolveUserPart",
       )(function* (part) {
+        if (part.type === "agent-message") {
+          return [
+            {
+              messageID: info.id,
+              sessionID: input.sessionID,
+              type: "agent-message",
+              sender: part.sender,
+              to: part.to,
+              replyTo: part.replyTo,
+              urgent: part.urgent,
+              text: part.text,
+            },
+          ]
+        }
         if (part.type === "file") {
           if (part.source?.type === "resource") {
             const { clientName, uri } = part.source
@@ -1515,6 +1529,7 @@ export const PromptInput = Schema.Struct({
       SessionV1.FilePartInput,
       SessionV1.AgentPartInput,
       SessionV1.SubtaskPartInput,
+      SessionV1.AgentMessagePartInput,
     ]).annotate({ discriminator: "type" }),
   ),
 })

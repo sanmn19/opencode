@@ -247,6 +247,12 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             text: "The following tool was executed by the user",
           })
         }
+        if (part.type === "agent-message" && part.text !== "") {
+          userMessage.parts.push({
+            type: "text",
+            text: `[agent-message from=${part.sender.agent} session=${part.sender.sessionID}]\n${part.text}`,
+          })
+        }
       }
       if (userMessage.parts.length > 0) result.push(userMessage)
     }
