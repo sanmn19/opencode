@@ -6,7 +6,7 @@ import { SessionPrompt } from "@/session/prompt"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { MessageID, SessionID } from "@/session/schema"
-import { Context, Effect, Exit, Layer, Schema } from "effect"
+import { Cause, Context, Effect, Exit, Layer, Schema, Scope } from "effect"
 
 const MAX_TEXT_BYTES = 16 * 1024
 const RATE_LIMIT = 30
@@ -55,6 +55,7 @@ export class TargetMissing extends Schema.TaggedErrorClass<TargetMissing>()("Age
 export interface MailState {
   pending: Map<SessionID, Array<{ input: SendInput; messageID: MessageID }>>
   window: Map<string, number[]>
+  scope: Scope.Scope
 }
 
 export interface Interface {
@@ -62,11 +63,6 @@ export interface Interface {
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/AgentMail") {}
-
-const emptyState: MailState = {
-  pending: new Map(),
-  window: new Map(),
-}
 
 const isSessionID = (value: string) => value.startsWith("ses_")
 
@@ -103,9 +99,32 @@ const layer = Layer.effect(
     const sessionSvc = yield* Session.Service
     const statuses = yield* SessionStatus.Service
     const promptSvc = yield* SessionPrompt.Service
+    const events = yield* EventV2Bridge.Service
+
+    const router = { flush: (_sessionID: SessionID) => Effect.void }
+
     const state = yield* InstanceState.make(() =>
-      Effect.sync(() => ({ pending: new Map(), window: new Map() } as MailState)),
+      Effect.gen(function* () {
+        // The idle watcher lives on the per-instance state so it re-attaches
+        // whenever the instance is rebuilt and detaches with it (scope-close).
+        const unsubscribe = yield* events.listen((event) =>
+      Effect.gen(function* () {
+        if (event.type !== "session.idle") return
+        const { sessionID } = event.data as { sessionID: SessionID }
+        yield* router.flush(sessionID)
+      }),
+        )
+        yield* Effect.addFinalizer(() => unsubscribe)
+        return { pending: new Map(), window: new Map(), scope: yield* Scope.Scope } as MailState
+      }),
     )
+
+    const enqueue = Effect.fn("AgentMail.enqueue")(function* (target: SessionID, input: SendInput, messageID: MessageID) {
+      const data = yield* InstanceState.get(state)
+      const queue = data.pending.get(target) ?? []
+      queue.push({ input, messageID })
+      data.pending.set(target, queue)
+    })
 
     const resolveTarget = Effect.fn("AgentMail.resolveTarget")(function* (
       to: string,
@@ -142,12 +161,24 @@ const layer = Layer.effect(
         })
       })
 
-    const enqueue = Effect.fn("AgentMail.enqueue")(function* (target: SessionID, input: SendInput, messageID: MessageID) {
+    const flush = Effect.fn("AgentMail.flush")(function* (sessionID: SessionID) {
       const data = yield* InstanceState.get(state)
-      const queue = data.pending.get(target) ?? []
-      queue.push({ input, messageID })
-      data.pending.set(target, queue)
+      const queue = data.pending.get(sessionID) ?? []
+      if (queue.length === 0) return
+      data.pending.delete(sessionID)
+      for (const item of queue) {
+        const admitted = yield* admit(sessionID, item.input, item.messageID).pipe(Effect.exit)
+        if (!Exit.isSuccess(admitted)) {
+          yield* Effect.logError("AgentMail flushed delivery failed", { target: sessionID })
+        }
+      }
     })
+
+    router.flush = Effect.fn("AgentMail.dispatchFlush")((sessionID: SessionID) =>
+      flush(sessionID).pipe(
+        Effect.catchCause((cause) => Effect.logError("AgentMail idle flush failed", { cause: Cause.pretty(cause) })),
+      ),
+    )
 
     const send = Effect.fn("AgentMail.send")(function* (input: SendInput) {
       if (!flags.a2a) {
@@ -163,11 +194,16 @@ const layer = Layer.effect(
         yield* enqueue(target, input, messageID)
         return { target, delivery: "queued" as const }
       }
-      const admitted = yield* admit(target, input, messageID).pipe(Effect.exit)
-      if (!Exit.isSuccess(admitted)) {
-        yield* Effect.logError("AgentMail admission failed, queueing", { target })
+      if (status.type !== "busy" && !flags.a2aAutoWake) {
         yield* enqueue(target, input, messageID)
+        return { target, delivery: "queued" as const }
       }
+      yield* admit(target, input, messageID)
+        .pipe(
+          Effect.exit,
+          Effect.flatMap((outcome) => (Exit.isSuccess(outcome) ? Effect.void : enqueue(target, input, messageID))),
+          Effect.forkIn(data.scope, { startImmediately: true }),
+        )
       return { target, delivery: "delivered" as const }
     })
 

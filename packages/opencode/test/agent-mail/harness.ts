@@ -221,13 +221,11 @@ function makeMail(flags: Partial<RuntimeFlags.Info> = {}) {
     [MCP.node, makeMcp()],
     [RuntimeFlags.node, runtimeFlags({ a2a: true, a2aAutoWake: true, ...flags })],
   ] as const
-  return LayerNode.compile(
-    LayerNode.group([promptRoot, AgentMail.node, testLLMServerNode]),
-    replacements,
-  )
+  return LayerNode.compile(LayerNode.group([promptRoot, AgentMail.node, testLLMServerNode]), replacements)
 }
 
 export const it5 = testEffect(makeMail()).instance
+export const it6 = testEffect(makeMail({ a2aAutoWake: false })).instance
 export const cfg5 = { useServerConfig, providerCfg }
 export function makeMail5() {
   return makeMail()
