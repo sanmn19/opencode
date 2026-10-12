@@ -2,6 +2,7 @@ import { Config, ConfigProvider, Context, Effect, Layer, Option } from "effect"
 import { ConfigService } from "@/effect/config-service"
 
 const bool = (name: string) => Config.boolean(name).pipe(Config.withDefault(false))
+const boolDefaultTrue = (name: string) => Config.boolean(name).pipe(Config.withDefault(true))
 const positiveInteger = (name: string) =>
   Config.number(name).pipe(
     Config.map((value) => (Number.isInteger(value) && value > 0 ? value : undefined)),
@@ -42,7 +43,7 @@ export class Service extends ConfigService.Service<Service>()("@opencode/Runtime
   experimentalReferences: enabledByExperimental("OPENCODE_EXPERIMENTAL_REFERENCES"),
   experimentalBackgroundSubagents: enabledByExperimental("OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS"),
   a2a: bool("OPENCODE_A2A"),
-  a2aAutoWake: bool("OPENCODE_A2A_AUTO_WAKE"),
+  a2aAutoWake: boolDefaultTrue("OPENCODE_A2A_AUTO_WAKE"),
   experimentalLspTy: bool("OPENCODE_EXPERIMENTAL_LSP_TY"),
   experimentalLspTool: enabledByExperimental("OPENCODE_EXPERIMENTAL_LSP_TOOL"),
   experimentalOxfmt: enabledByExperimental("OPENCODE_EXPERIMENTAL_OXFMT"),
