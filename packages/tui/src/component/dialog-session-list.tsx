@@ -235,6 +235,12 @@ export function DialogSessionList() {
 
       const isDeleting = toDelete() === x.id
       const status = sync.data.session_status?.[x.id]
+      const unread = sync.unread.count(x.id)
+      const title = isDeleting
+        ? `Press ${deleteHint()} again to confirm`
+        : unread > 0
+          ? `${x.title} ●${unread}`
+          : x.title
       const isWorking = status?.type === "busy" || status?.type === "retry"
       const slot = slotByID.get(x.id)
       const gutter = isWorking
@@ -243,7 +249,7 @@ export function DialogSessionList() {
           ? () => <text fg={theme.accent}>{slot}</text>
           : undefined
       return {
-        title: isDeleting ? `Press ${deleteHint()} again to confirm` : x.title,
+        title,
         bg: isDeleting ? theme.error : undefined,
         value: x.id,
         category,

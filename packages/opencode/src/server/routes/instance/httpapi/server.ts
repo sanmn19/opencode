@@ -12,6 +12,7 @@ import { Command } from "@/command"
 import { Config } from "@/config/config"
 import { Workspace } from "@/control-plane/workspace"
 import { Env } from "@/env"
+import { AgentMailRuntime } from "@/agent-mail/delivery"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Format } from "@/format"
 import { Git } from "@/git"
@@ -240,6 +241,7 @@ const app = LayerNode.group([
   EventV2Bridge.node,
   SessionRunState.node,
   SessionProcessor.node,
+  AgentMailRuntime.node,
   SessionCompaction.node,
   SessionRevert.node,
   SessionSummary.node,

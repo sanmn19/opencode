@@ -3,6 +3,7 @@
 import { client } from "./client.gen.js"
 import { buildClientParams, type Client, type Options as Options2, type TDataShape } from "./client/index.js"
 import type {
+  AgentMessagePartInput,
   AgentPartInput,
   AppAgentsErrors,
   AppAgentsResponses,
@@ -177,6 +178,8 @@ import type {
   QuestionV2Reply,
   SessionAbortErrors,
   SessionAbortResponses,
+  SessionAgentMessageErrors,
+  SessionAgentMessageResponses,
   SessionChildrenErrors,
   SessionChildrenResponses,
   SessionCommandErrors,
@@ -3757,7 +3760,7 @@ export class Session2 extends HeyApiClient {
       format?: OutputFormat
       system?: string
       variant?: string
-      parts?: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
+      parts?: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput | AgentMessagePartInput>
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -4110,7 +4113,7 @@ export class Session2 extends HeyApiClient {
       format?: OutputFormat
       system?: string
       variant?: string
-      parts?: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
+      parts?: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput | AgentMessagePartInput>
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -4145,6 +4148,55 @@ export class Session2 extends HeyApiClient {
         ...params.headers,
       },
     })
+  }
+
+  /**
+   * Send an agent message
+   *
+   * Deliver an agent-to-agent message into a session's transcript and processing queue.
+   */
+  public agentMessage<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      from?: string
+      agent?: string
+      text?: string
+      urgent?: boolean
+      replyTo?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "from" },
+            { in: "body", key: "agent" },
+            { in: "body", key: "text" },
+            { in: "body", key: "urgent" },
+            { in: "body", key: "replyTo" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SessionAgentMessageResponses, SessionAgentMessageErrors, ThrowOnError>(
+      {
+        url: "/session/{sessionID}/agent-message",
+        ...options,
+        ...params,
+        headers: {
+          "Content-Type": "application/json",
+          ...options?.headers,
+          ...params.headers,
+        },
+      },
+    )
   }
 
   /**

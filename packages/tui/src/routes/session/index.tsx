@@ -285,6 +285,7 @@ export function Session() {
 
   createEffect(() => {
     const sessionID = route.sessionID
+    sync.unread.clear(sessionID)
     void (async () => {
       const previousWorkspace = untrack(() => project.workspace.current())
       const result = await sdk.client.session.get({ sessionID }, { throwOnError: true })
@@ -1390,9 +1391,38 @@ function UserMessage(props: {
   const metadataVisible = createMemo(() => queued() || ctx.showTimestamps())
 
   const compaction = createMemo(() => props.parts.find((x) => x.type === "compaction"))
+  const agentMessages = createMemo(() => props.parts.flatMap((x) => (x.type === "agent-message" ? [x] : [])))
 
   return (
     <>
+      <For each={agentMessages()}>
+        {(part) => (
+          <box
+            id={part.id}
+            border={["left"]}
+            borderColor={theme.warning}
+            customBorderChars={SplitBorder.customBorderChars}
+            marginTop={props.index === 0 ? 0 : 1}
+          >
+            <box
+              paddingTop={1}
+              paddingBottom={1}
+              paddingLeft={2}
+              backgroundColor={theme.backgroundPanel}
+              flexShrink={0}
+            >
+              <text fg={theme.warning}>
+                <span style={{ bg: theme.warning, fg: theme.background, bold: true }}> AGENT </span>
+                <span style={{ fg: theme.textMuted }}>
+                  {part.sender.agent} · {part.sender.sessionID}
+                  {part.urgent ? " · urgent" : ""}
+                </span>
+              </text>
+              <text fg={theme.text}>{part.text}</text>
+            </box>
+          </box>
+        )}
+      </For>
       <Show when={text()}>
         <box
           id={props.message.id}

@@ -242,6 +242,7 @@ function makeHttpNoLLMServer(input?: { mcpInstructions?: MCP.ServerInstructions[
 const it = testEffect(makeHttp())
 const noLLMServer = testEffect(makeHttpNoLLMServer())
 const raceNoLLMServer = testEffect(makeHttpNoLLMServer({ processor: "blocking" }))
+const a2a = testEffect(makeHttp())
 const withMcpInstructions = testEffect(
   makeHttp({
     mcpInstructions: [
@@ -2467,4 +2468,43 @@ noLLMServer.instance(
       }
     }),
   30_000,
+)
+
+a2a.instance("agent-message part is persisted and its wrapped text reaches the LLM", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* sessions.create({
+      title: "a2a ingest",
+      permission: [{ permission: "*", pattern: "*", action: "allow" }],
+    })
+    yield* prompt.prompt({
+      sessionID: chat.id,
+      agent: "build",
+      noReply: true,
+      parts: [
+        {
+          type: "agent-message",
+          sender: { sessionID: SessionID.make("ses_01JT0000000000000000000001"), agent: "worker" },
+          to: chat.id,
+          text: "build finished",
+        },
+      ],
+    })
+    yield* llm.text("ack")
+    const result = yield* prompt.loop({ sessionID: chat.id })
+    expect(result.info.role).toBe("assistant")
+    const messages = yield* sessions.messages({ sessionID: chat.id })
+    const agentPart = messages
+      .flatMap((m) => m.parts)
+      .find((p): p is SessionV1.AgentMessagePart => p.type === "agent-message")
+    expect(agentPart?.sender.agent).toBe("worker")
+    expect(agentPart?.text).toBe("build finished")
+    const hits = yield* llm.hits
+    const body = JSON.stringify(hits[0]?.body)
+    expect(body).toContain("[agent-message")
+    expect(body).toContain("build finished")
+    expect(yield* llm.hits).toHaveLength(1)
+  }),
 )

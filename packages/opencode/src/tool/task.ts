@@ -236,8 +236,9 @@ export const TaskTool = Tool.define(
             variant,
             parts: [
               {
-                type: "text",
-                synthetic: true,
+                type: "agent-message",
+                sender: { sessionID: nextSession.id, agent: next.name },
+                to: ctx.sessionID,
                 text: renderOutput({
                   sessionID: nextSession.id,
                   state,

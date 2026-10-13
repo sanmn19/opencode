@@ -624,6 +624,21 @@ export type CompactionPart = {
   tail_start_id?: string
 }
 
+export type AgentMessagePart = {
+  id: string
+  sessionID: string
+  messageID: string
+  type: "agent-message"
+  sender: {
+    sessionID: string
+    agent: string
+  }
+  to: string
+  replyTo?: string
+  urgent?: boolean
+  text: string
+}
+
 export type Part =
   | TextPart
   | SubtaskPart
@@ -637,6 +652,7 @@ export type Part =
   | AgentPart
   | RetryPart
   | CompactionPart
+  | AgentMessagePart
 
 export type Prompt = {
   text: string
@@ -2596,6 +2612,19 @@ export type SubtaskPartInput = {
     modelID: string
   }
   command?: string
+}
+
+export type AgentMessagePartInput = {
+  id?: string
+  type: "agent-message"
+  sender: {
+    sessionID: string
+    agent: string
+  }
+  to: string
+  replyTo?: string
+  urgent?: boolean
+  text: string
 }
 
 export type SessionBusyError = {
@@ -9809,7 +9838,7 @@ export type SessionPromptData = {
     format?: OutputFormat
     system?: string
     variant?: string
-    parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
+    parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput | AgentMessagePartInput>
   }
   path: {
     sessionID: string
@@ -10156,7 +10185,7 @@ export type SessionPromptAsyncData = {
     format?: OutputFormat
     system?: string
     variant?: string
-    parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
+    parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput | AgentMessagePartInput>
   }
   path: {
     sessionID: string
@@ -10189,6 +10218,49 @@ export type SessionPromptAsyncResponses = {
 }
 
 export type SessionPromptAsyncResponse = SessionPromptAsyncResponses[keyof SessionPromptAsyncResponses]
+
+export type SessionAgentMessageData = {
+  body?: {
+    from: string
+    agent: string
+    text: string
+    urgent?: boolean
+    replyTo?: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/agent-message"
+}
+
+export type SessionAgentMessageErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type SessionAgentMessageError = SessionAgentMessageErrors[keyof SessionAgentMessageErrors]
+
+export type SessionAgentMessageResponses = {
+  /**
+   * Agent message delivery result
+   */
+  200: {
+    target: string
+    delivery: "delivered" | "queued"
+  }
+}
+
+export type SessionAgentMessageResponse = SessionAgentMessageResponses[keyof SessionAgentMessageResponses]
 
 export type SessionCommandData = {
   body?: {

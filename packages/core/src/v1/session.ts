@@ -5,6 +5,8 @@ import { NonNegativeInt } from "../schema"
 import { NamedError } from "../util/error"
 
 export {
+  AgentMessagePart,
+  AgentMessagePartInput,
   AgentPart,
   AgentPartInput,
   Assistant,

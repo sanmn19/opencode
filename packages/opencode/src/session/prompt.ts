@@ -7,6 +7,8 @@ import { SessionID, MessageID, PartID } from "./schema"
 import { MessageV2 } from "./message-v2"
 import { SessionRevert } from "./revert"
 import { Session } from "./session"
+import { AgentMail } from "@/agent-mail/agent-mail"
+import { AgentMailRuntime } from "@/agent-mail/delivery"
 import { Agent } from "../agent/agent"
 import { Provider } from "@/provider/provider"
 
@@ -147,6 +149,11 @@ const layer = Layer.effect(
         resolvePromptParts: (template: string) => resolvePromptParts(template),
         prompt: (input: PromptInput) => prompt(input).pipe(Effect.catch(Effect.die)),
       } satisfies TaskPromptOps
+    })
+
+    const mail = yield* AgentMail.Service
+    yield* mail.setAdmitter({
+      prompt: (input) => prompt(input).pipe(Effect.asVoid),
     })
 
     const cancel = Effect.fn("SessionPrompt.cancel")(function* (sessionID: SessionID) {
@@ -699,6 +706,20 @@ const layer = Layer.effect(
       const resolvePart: (part: PromptInput["parts"][number]) => Effect.Effect<Draft<SessionV1.Part>[]> = Effect.fn(
         "SessionPrompt.resolveUserPart",
       )(function* (part) {
+        if (part.type === "agent-message") {
+          return [
+            {
+              messageID: info.id,
+              sessionID: input.sessionID,
+              type: "agent-message",
+              sender: part.sender,
+              to: part.to,
+              replyTo: part.replyTo,
+              urgent: part.urgent,
+              text: part.text,
+            },
+          ]
+        }
         if (part.type === "file") {
           if (part.source?.type === "resource") {
             const { clientName, uri } = part.source
@@ -1515,6 +1536,7 @@ export const PromptInput = Schema.Struct({
       SessionV1.FilePartInput,
       SessionV1.AgentPartInput,
       SessionV1.SubtaskPartInput,
+      SessionV1.AgentMessagePartInput,
     ]).annotate({ discriminator: "type" }),
   ),
 })
@@ -1599,6 +1621,7 @@ export const node = LayerNode.make({
   service: Service,
   layer: layer,
   deps: [
+    AgentMailRuntime.node,
     SessionStatus.node,
     Session.node,
     Agent.node,

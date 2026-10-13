@@ -102,6 +102,9 @@ export const {
       part: {
         [messageID: string]: Part[]
       }
+      unread: {
+        [sessionID: string]: number
+      }
       lsp: LspStatus[]
       mcp: {
         [key: string]: McpStatus
@@ -136,6 +139,7 @@ export const {
       todo: {},
       message: {},
       part: {},
+      unread: {},
       lsp: [],
       mcp: {},
       mcp_resource: {},
@@ -392,6 +396,8 @@ export const {
               draft.splice(result.index, 0, event.properties.part)
             }),
           )
+          if (event.properties.part.type === "agent-message")
+            setStore("unread", event.properties.part.sessionID, (count = 0) => count + 1)
           break
         }
 
@@ -558,6 +564,14 @@ export const {
     const result = {
       data: store,
       set: setStore,
+      unread: {
+        count(sessionID: string) {
+          return store.unread[sessionID] ?? 0
+        },
+        clear(sessionID: string) {
+          setStore("unread", sessionID, 0)
+        },
+      },
       get status() {
         return store.status
       },

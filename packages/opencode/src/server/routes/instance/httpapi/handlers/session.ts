@@ -14,6 +14,7 @@ import { SessionRunState } from "@/session/run-state"
 import { SessionStatus } from "@/session/status"
 import { SessionSummary } from "@/session/summary"
 import { Todo } from "@/session/todo"
+import { AgentMail } from "@/agent-mail/agent-mail"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { Cause, Effect, Option, Schema, Scope } from "effect"
@@ -35,6 +36,7 @@ import {
   ShellPayload,
   SummarizePayload,
   UpdatePayload,
+  AgentMessagePayload,
 } from "../groups/session"
 import { PermissionNotFoundError } from "../errors"
 import * as SessionError from "./session-errors"
@@ -60,6 +62,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const summary = yield* SessionSummary.Service
     const events = yield* EventV2Bridge.Service
     const scope = yield* Scope.Scope
+    const mail = yield* AgentMail.Service
 
     const list = Effect.fn("SessionHttpApi.list")(function* (ctx: { query: typeof ListQuery.Type }) {
       const directory = ctx.query.directory ? yield* InstanceState.directory : undefined
@@ -328,6 +331,23 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return HttpApiSchema.NoContent.make()
     })
 
+    const agentMessage = Effect.fn("SessionHttpApi.agentMessage")(function* (ctx: {
+      params: { sessionID: SessionID }
+      payload: typeof AgentMessagePayload.Type
+    }) {
+      yield* requireSession(ctx.params.sessionID)
+      const delivery = yield* mail
+        .send({
+          to: ctx.params.sessionID,
+          text: ctx.payload.text,
+          urgent: ctx.payload.urgent,
+          replyTo: ctx.payload.replyTo ? MessageID.make(ctx.payload.replyTo) : undefined,
+          sender: { sessionID: SessionID.make(ctx.payload.from), agent: ctx.payload.agent },
+        })
+        .pipe(Effect.mapError(() => new HttpApiError.BadRequest({})))
+      return delivery
+    })
+
     const command = Effect.fn("SessionHttpApi.command")(function* (ctx: {
       params: { sessionID: SessionID }
       payload: typeof CommandPayload.Type
@@ -430,6 +450,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("summarize", summarize)
       .handle("prompt", prompt)
       .handle("promptAsync", promptAsync)
+      .handle("agentMessage", agentMessage)
       .handle("command", command)
       .handle("shell", shell)
       .handle("revert", revert)
