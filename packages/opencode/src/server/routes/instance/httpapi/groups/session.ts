@@ -82,8 +82,8 @@ export const AgentDeliveryInfo = Schema.Struct({
   delivery: Schema.Literals(["delivered", "queued"]),
 })
 export const AgentRegistryQuery = Schema.Struct({
+  ...WorkspaceRoutingQueryFields,
   agent: Schema.optional(Schema.String),
-  directory: Schema.optional(Schema.String),
   status: Schema.optional(Schema.Literals(["busy", "idle", "retry"])),
 })
 export const AgentRegistryEntry = Schema.Struct({

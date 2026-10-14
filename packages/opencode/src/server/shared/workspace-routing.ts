@@ -25,6 +25,10 @@ export function getWorkspaceRouteSessionID(url: URL) {
     url.pathname.match(/^\/experimental\/session\/([^/]+)\/background$/)?.[1]
   if (!id) return null
 
+  // literal sub-paths (status, agents, …) are not session ids; SessionID is
+  // always "ses_"-prefixed, so anything else must not be parsed as one
+  if (!id.startsWith("ses_")) return null
+
   return SessionID.make(id)
 }
 
