@@ -81,6 +81,19 @@ export const AgentDeliveryInfo = Schema.Struct({
   target: Schema.String,
   delivery: Schema.Literals(["delivered", "queued"]),
 })
+export const AgentRegistryQuery = Schema.Struct({
+  agent: Schema.optional(Schema.String),
+  directory: Schema.optional(Schema.String),
+  status: Schema.optional(Schema.Literals(["busy", "idle", "retry"])),
+})
+export const AgentRegistryEntry = Schema.Struct({
+  sessionID: Schema.String,
+  agent: Schema.String,
+  directory: Schema.optional(Schema.String),
+  title: Schema.optional(Schema.String),
+  status: Schema.Literals(["busy", "idle", "retry"]),
+  lastActive: Schema.Number,
+})
 export const RevertPayload = Schema.Struct(Struct.omit(SessionRevert.RevertInput.fields, ["sessionID"]))
 export const PermissionResponsePayload = Schema.Struct({
   response: PermissionV1.Reply,
@@ -106,6 +119,7 @@ export const SessionPaths = {
   prompt: `${root}/:sessionID/message`,
   promptAsync: `${root}/:sessionID/prompt_async`,
   agentMessage: `${root}/:sessionID/agent-message`,
+  agents: `${root}/agents`,
   command: `${root}/:sessionID/command`,
   shell: `${root}/:sessionID/shell`,
   revert: `${root}/:sessionID/revert`,
@@ -139,6 +153,16 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.status",
             summary: "Get session status",
             description: "Retrieve the current status of all sessions, including active, idle, and completed states.",
+          }),
+        ),
+        HttpApiEndpoint.get("agents", SessionPaths.agents, {
+          query: AgentRegistryQuery,
+          success: described(Schema.Array(AgentRegistryEntry), "Registered agent sessions"),
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.agents",
+            summary: "List registered agent sessions",
+            description: "Live registry of agent sessions available for agent-to-agent messaging.",
           }),
         ),
         HttpApiEndpoint.get("get", SessionPaths.get, {

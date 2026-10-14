@@ -16,6 +16,21 @@ export interface DeliveryResult {
   delivery: "delivered" | "queued"
 }
 
+export interface RegistryEntry {
+  sessionID: SessionID
+  agent: string
+  directory?: string
+  title?: string
+  status: "busy" | "idle" | "retry"
+  lastActive: number
+}
+
+export interface RegistryQuery {
+  agent?: string
+  directory?: string
+  status?: "busy" | "idle" | "retry"
+}
+
 export interface Admitter {
   prompt(input: {
     sessionID: SessionID
@@ -36,6 +51,7 @@ export type SendError =
 export interface Interface {
   readonly send: (input: SendInput) => Effect.Effect<DeliveryResult, SendError>
   readonly setAdmitter: (admitter: Admitter) => Effect.Effect<void>
+  readonly lookup: (query: RegistryQuery) => Effect.Effect<Array<RegistryEntry>>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/AgentMail") {}

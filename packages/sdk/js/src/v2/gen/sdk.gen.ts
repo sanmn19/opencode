@@ -180,6 +180,8 @@ import type {
   SessionAbortResponses,
   SessionAgentMessageErrors,
   SessionAgentMessageResponses,
+  SessionAgentsErrors,
+  SessionAgentsResponses,
   SessionChildrenErrors,
   SessionChildrenResponses,
   SessionCommandErrors,
@@ -3485,6 +3487,38 @@ export class Session2 extends HeyApiClient {
     )
     return (options?.client ?? this.client).get<SessionStatusResponses, SessionStatusErrors, ThrowOnError>({
       url: "/session/status",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * List registered agent sessions
+   *
+   * Live registry of agent sessions available for agent-to-agent messaging.
+   */
+  public agents<ThrowOnError extends boolean = false>(
+    parameters?: {
+      agent?: string
+      directory?: string
+      status?: "busy" | "idle" | "retry"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "agent" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "status" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<SessionAgentsResponses, SessionAgentsErrors, ThrowOnError>({
+      url: "/session/agents",
       ...options,
       ...params,
     })

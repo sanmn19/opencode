@@ -9574,6 +9574,42 @@ export type SessionStatusResponses = {
 
 export type SessionStatusResponse = SessionStatusResponses[keyof SessionStatusResponses]
 
+export type SessionAgentsData = {
+  body?: never
+  path?: never
+  query?: {
+    agent?: string
+    directory?: string
+    status?: "busy" | "idle" | "retry"
+  }
+  url: "/session/agents"
+}
+
+export type SessionAgentsErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type SessionAgentsError = SessionAgentsErrors[keyof SessionAgentsErrors]
+
+export type SessionAgentsResponses = {
+  /**
+   * Registered agent sessions
+   */
+  200: Array<{
+    sessionID: string
+    agent: string
+    directory?: string
+    title?: string
+    status: "busy" | "idle" | "retry"
+    lastActive: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  }>
+}
+
+export type SessionAgentsResponse = SessionAgentsResponses[keyof SessionAgentsResponses]
+
 export type SessionDeleteData = {
   body?: never
   path: {

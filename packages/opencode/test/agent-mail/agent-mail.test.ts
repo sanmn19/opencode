@@ -226,3 +226,49 @@ describe("agent_message tool", () => {
   60_000,
   )
 })
+
+describe("AgentMail registry", () => {
+  it5("indexes sessions by agent and resolves lookups with filters", () =>
+    Effect.gen(function* () {
+      const mail = yield* AgentMail.Service
+      const sessions = yield* Session.Service
+      const worker = yield* sessions.create({ agent: "registry-worker" })
+      yield* sessions.create({})
+
+      const entries = yield* mail.lookup({ agent: "registry-worker" })
+      expect(entries.length).toBe(1)
+      expect(entries[0]?.sessionID).toBe(worker.id)
+      expect(entries[0]?.status).toBe("idle")
+    }),
+  )
+
+  it5("deregisters sessions when they are deleted", () =>
+    Effect.gen(function* () {
+      const mail = yield* AgentMail.Service
+      const sessions = yield* Session.Service
+      const target = yield* sessions.create({ agent: "registry-busy" })
+      const busy = yield* mail.lookup({ agent: "registry-busy" })
+      expect(busy[0]?.status).toBe("idle")
+
+      yield* sessions.remove(target.id)
+      const after = yield* mail.lookup({ agent: "registry-busy" })
+      expect(after.length).toBe(0)
+    }),
+  30_000,
+  )
+
+  it5("send() resolves names through the registry", () =>
+    Effect.gen(function* () {
+      const mail = yield* AgentMail.Service
+      const sessions = yield* Session.Service
+      const worker = yield* sessions.create({ agent: "registry-send" })
+      const senderSession = yield* sessions.create({})
+      const result = yield* mail.send({
+        sender: { sessionID: senderSession.id, agent: "main" },
+        to: "registry-send",
+        text: "registry hi",
+      })
+      expect(result.target).toBe(worker.id)
+    }),
+  )
+})

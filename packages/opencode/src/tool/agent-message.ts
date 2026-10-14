@@ -8,6 +8,7 @@ const DESCRIPTION = [
   "Delivery: if the recipient is idle it wakes and processes the message in a new turn;",
   "if it is busy, the message is held and delivered when its current run finishes.",
   "Use urgent to have a busy recipient process the message at its next turn boundary instead.",
+  "Not sure who to message? Call agent_lookup first to discover available agents and their status.",
   "Coordinate shared resources (ports, GPUs, files) through these messages before acting on them,",
   "and reply with replyTo when answering a specific incoming message.",
 ].join("\n")

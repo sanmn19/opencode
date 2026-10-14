@@ -38,6 +38,7 @@ const validate = Effect.fn("AgentMail.validate")(function* (input: AgentMail.Sen
 interface MailState {
   pending: Map<SessionID, Array<{ input: AgentMail.SendInput; messageID: MessageID }>>
   window: Map<string, number[]>
+  registry: Map<SessionID, AgentMail.RegistryEntry>
   scope: Scope.Scope
 }
 
@@ -51,23 +52,63 @@ const layer = Layer.effect(
 
     let dispatch: (sessionID: SessionID) => Effect.Effect<void> = () => Effect.void
 
+    const entryFromInfo = (info: Session.Info, status: AgentMail.RegistryEntry["status"]): AgentMail.RegistryEntry => ({
+      sessionID: info.id,
+      agent: info.agent ?? "",
+      directory: info.directory,
+      title: info.title,
+      status,
+      lastActive: info.time?.updated ?? info.time?.created ?? 0,
+    })
+
     const state = yield* InstanceState.make(() =>
       Effect.gen(function* () {
-        // The idle watcher lives on the per-instance state so it re-attaches
-        // whenever the instance is rebuilt and detaches with it (scope-close).
+        const registry = new Map<SessionID, AgentMail.RegistryEntry>()
+        const busy = yield* statuses.list()
+        const all = yield* sessionSvc.list()
+        for (const info of all) {
+          if (!info.agent || info.time?.archived) continue
+          registry.set(info.id, entryFromInfo(info, busy.get(info.id)?.type === "busy" ? "busy" : "idle"))
+        }
+        // The idle watcher + registry live on the per-instance state so they
+        // re-attach whenever the instance is rebuilt and detach with it (scope-close).
         const unsubscribe = yield* events.listen((event) =>
           Effect.gen(function* () {
-            if (event.type !== "session.idle") return
-            const { sessionID } = event.data as { sessionID: SessionID }
-            yield* dispatch(sessionID)
+            if (event.type === "session.idle") {
+              const { sessionID } = event.data as { sessionID: SessionID }
+              yield* dispatch(sessionID)
+              return
+            }
+            if (event.type === "session.created" || event.type === "session.updated") {
+              const { info } = event.data as { info: Session.Info }
+              if (!info.agent || info.time?.archived) {
+                registry.delete(info.id)
+                return
+              }
+              const current = registry.get(info.id)
+              registry.set(info.id, { ...entryFromInfo(info, current?.status ?? "idle"), ...(current && info.time?.updated === current.lastActive ? { lastActive: current.lastActive } : {}) })
+              return
+            }
+            if (event.type === "session.status") {
+              const { sessionID, status } = event.data as { sessionID: SessionID; status: { type: string } }
+              const entry = registry.get(sessionID)
+              if (entry && (status.type === "busy" || status.type === "idle" || status.type === "retry")) {
+                registry.set(sessionID, { ...entry, status: status.type, lastActive: Date.now() })
+              }
+              return
+            }
+            if (event.type === "session.deleted") {
+              const { sessionID } = event.data as { sessionID: SessionID }
+              registry.delete(sessionID)
+            }
           }).pipe(
             Effect.catchCause((cause) =>
-              Effect.logError("AgentMail idle flush failed", { cause: Cause.pretty(cause) }),
+              Effect.logError("AgentMail registry/flush event failed", { cause: Cause.pretty(cause) }),
             ),
           ),
         )
         yield* Effect.addFinalizer(() => unsubscribe)
-        return { pending: new Map(), window: new Map(), scope: yield* Scope.Scope } as MailState
+        return { pending: new Map(), window: new Map(), registry, scope: yield* Scope.Scope } as MailState
       }),
     )
 
@@ -83,6 +124,15 @@ const layer = Layer.effect(
         const outcome = yield* sessionSvc.get(SessionID.make(to)).pipe(Effect.exit)
         if (!Exit.isSuccess(outcome)) return yield* new AgentMail.UnknownTarget({ message: `No session ${to}` })
         return outcome.value
+      }
+      const data = yield* InstanceState.get(state)
+      const registered = [...data.registry.values()]
+        .filter((entry) => entry.agent === to && entry.sessionID !== sender.sessionID)
+        .toSorted((a, b) => b.lastActive - a.lastActive)
+      const registeredPick = registered[0]
+      if (registeredPick) {
+        const outcome = yield* sessionSvc.get(registeredPick.sessionID).pipe(Effect.exit)
+        if (Exit.isSuccess(outcome)) return outcome.value
       }
       const all = yield* sessionSvc.list()
       const candidates = all
@@ -165,7 +215,19 @@ const layer = Layer.effect(
       return { target, delivery: "delivered" as const }
     })
 
-    return AgentMail.Service.of({ send, setAdmitter })
+    const lookup = Effect.fn("AgentMail.lookup")(function* (query: AgentMail.RegistryQuery) {
+      const data = yield* InstanceState.get(state)
+      return [...data.registry.values()]
+        .filter(
+          (entry) =>
+            (!query.agent || entry.agent === query.agent) &&
+            (!query.directory || entry.directory === query.directory) &&
+            (!query.status || entry.status === query.status),
+        )
+        .toSorted((a, b) => b.lastActive - a.lastActive)
+    })
+
+    return AgentMail.Service.of({ send, setAdmitter, lookup })
   }),
 )
 

@@ -37,6 +37,7 @@ import {
   SummarizePayload,
   UpdatePayload,
   AgentMessagePayload,
+  AgentRegistryQuery,
 } from "../groups/session"
 import { PermissionNotFoundError } from "../errors"
 import * as SessionError from "./session-errors"
@@ -79,6 +80,16 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
 
     const status = Effect.fn("SessionHttpApi.status")(function* () {
       return Object.fromEntries(yield* statusSvc.list())
+    })
+
+    const agents = Effect.fn("SessionHttpApi.agents")(function* (ctx: {
+      query: typeof AgentRegistryQuery.Type
+    }) {
+      return yield* mail.lookup({
+        agent: ctx.query.agent,
+        directory: ctx.query.directory,
+        status: ctx.query.status,
+      })
     })
 
     const requireSession = Effect.fn("SessionHttpApi.requireSession")(function* (sessionID: SessionID) {
@@ -432,6 +443,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
 
     return handlers
       .handle("list", list)
+      .handle("agents", agents)
       .handle("status", status)
       .handle("get", get)
       .handle("children", children)

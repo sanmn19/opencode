@@ -11,6 +11,7 @@ import { GrepTool } from "./grep"
 import { ReadTool } from "./read"
 import { TaskTool } from "./task"
 import { AgentMessage } from "./agent-message"
+import { AgentLookup } from "./agent-lookup"
 import { AgentMailRuntime } from "@/agent-mail/delivery"
 import { Database } from "@opencode-ai/core/database/database"
 import { TodoWriteTool } from "./todo"
@@ -101,8 +102,9 @@ const layer = Layer.effect(
     const mcp = yield* MCP.Service
 
     const invalid = yield* InvalidTool
-    const task = yield* TaskTool
-    const agentMessage = yield* AgentMessage.AgentMessageTool
+  const task = yield* TaskTool
+  const agentMessage = yield* AgentMessage.AgentMessageTool
+  const agentLookup = yield* AgentLookup.AgentLookupTool
     const read = yield* ReadTool
     const question = yield* QuestionTool
     const todo = yield* TodoWriteTool
@@ -219,6 +221,7 @@ const layer = Layer.effect(
           write: Tool.init(writetool),
           task: Tool.init(task),
           agentMessage: Tool.init(agentMessage),
+          agentLookup: Tool.init(agentLookup),
           fetch: Tool.init(webfetch),
           todo: Tool.init(todo),
           search: Tool.init(websearch),
@@ -243,6 +246,7 @@ const layer = Layer.effect(
             tool.write,
             tool.task,
             tool.agentMessage,
+            tool.agentLookup,
             tool.fetch,
             tool.todo,
             tool.search,
